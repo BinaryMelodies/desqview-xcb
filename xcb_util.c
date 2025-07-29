@@ -242,9 +242,6 @@ static int _xcb_open_tcp(const char *host, char *protocol, const unsigned short 
 #ifndef _WIN32
 static int _xcb_open_unix(char *protocol, const char *file);
 #endif /* !WIN32 */
-#ifdef HAVE_ABSTRACT_SOCKETS
-static int _xcb_open_abstract(char *protocol, const char *file, size_t filelen);
-#endif
 
 static int _xcb_open(const char *host, char *protocol, const int display)
 {
@@ -257,7 +254,6 @@ static int _xcb_open(const char *host, char *protocol, const int display)
     const char *base = unix_base;
     size_t filelen;
     char *file = NULL;
-    int actual_filelen;
 
 #ifndef _WIN32
     if (protocol && strcmp("unix", protocol) == 0 && host && host[0] == '/') {
@@ -269,7 +265,6 @@ static int _xcb_open(const char *host, char *protocol, const int display)
         if (file == NULL)
             return -1;
         memcpy(file, host, filelen);
-        actual_filelen = (int)(filelen - 1);
     } else {
 #endif
         /* If protocol or host is "unix", fall through to Unix socket code below */
@@ -305,23 +300,11 @@ static int _xcb_open(const char *host, char *protocol, const int display)
             return -1;
 
         /* display specifies Unix socket */
-        actual_filelen = snprintf(file, filelen, "%s%d", base, display);
-
-        if(actual_filelen < 0)
+        if (snprintf(file, filelen, "%s%d", base, display) < 0)
         {
             free(file);
             return -1;
         }
-        /* snprintf may truncate the file */
-        filelen = MIN(actual_filelen, filelen - 1);
-#ifdef HAVE_ABSTRACT_SOCKETS
-        fd = _xcb_open_abstract(protocol, file, filelen);
-        if (fd >= 0 || (errno != ENOENT && errno != ECONNREFUSED))
-        {
-            free(file);
-            return fd;
-        }
-#endif
     }
     fd = _xcb_open_unix(protocol, file);
     free(file);
@@ -491,33 +474,6 @@ static int _xcb_open_unix(char *protocol, const char *file)
     return fd;
 }
 #endif /* !_WIN32 */
-
-#ifdef HAVE_ABSTRACT_SOCKETS
-static int _xcb_open_abstract(char *protocol, const char *file, size_t filelen)
-{
-    int fd;
-    struct sockaddr_un addr = {0};
-    socklen_t namelen;
-
-    if (protocol && strcmp("unix",protocol))
-        return -1;
-
-    strcpy(addr.sun_path + 1, file);
-    addr.sun_family = AF_UNIX;
-    namelen = offsetof(struct sockaddr_un, sun_path) + 1 + filelen;
-#ifdef HAVE_SOCKADDR_SUN_LEN
-    addr.sun_len = 1 + filelen;
-#endif
-    fd = _xcb_socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd == -1)
-        return -1;
-    if (connect(fd, (struct sockaddr *) &addr, namelen) == -1) {
-        close(fd);
-        return -1;
-    }
-    return fd;
-}
-#endif
 
 xcb_connection_t *xcb_connect(const char *displayname, int *screenp)
 {
