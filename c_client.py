@@ -3187,8 +3187,8 @@ def c_request(self, name):
         _c_request_helper(self, name, void=False, regular=True, aux=False, reply_fds=has_fds)
         _c_request_helper(self, name, void=False, regular=False, aux=False, reply_fds=has_fds)
         if self.c_need_aux:
-            _c_request_helper(self, name, void=False, regular=True, aux=True, reply_fs=has_fds)
-            _c_request_helper(self, name, void=False, regular=False, aux=True, reply_fs=has_fds)
+            _c_request_helper(self, name, void=False, regular=True, aux=True, reply_fds=has_fds)
+            _c_request_helper(self, name, void=False, regular=False, aux=True, reply_fds=has_fds)
         # Reply accessors
         _c_accessors(self.reply, name + ('reply',), name)
         _c_reply(self, name)
