@@ -986,13 +986,13 @@ def _c_get_field_mapping_for_expr(self, expr, prefix):
         tmp_prefix = prefix
         if len(tmp_prefix)==0:
             raise Exception("found an empty prefix while resolving expr field names for list %s",
-                            field.c_field_name)
+                            self)
 
         field_mapping.update(_c_helper_resolve_field_names(prefix))
         resolved += [x for x in unresolved if x in field_mapping]
         unresolved = [x for x in unresolved if x not in field_mapping]
         if len(unresolved)>0:
-            raise Exception('could not resolve the length fields required for list %s' % field.c_field_name)
+            raise Exception('could not resolve the length fields required for list %s' % self)
 
     return field_mapping
 
