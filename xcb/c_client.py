@@ -6,6 +6,8 @@ import sys
 import errno
 import re
 
+#### Changed from the original XCB implementation in order to split up xproto.c into several files of the form xproto.???.c
+
 # Jump to the bottom of this file for the main routine
 
 #config settings (can be changed with commandline options)
@@ -49,7 +51,14 @@ def _c(fmt, *args):
     '''
     Writes the given line to the source file.
     '''
-    _clines[_clevel].append(fmt % args)
+    if _ns.header == 'xproto' and _clevel == 1:
+        _clines[_clevel][-1].append(fmt % args)
+    else:
+        _clines[_clevel].append(fmt % args)
+
+def _c_nextfun():
+    if _ns.header == 'xproto' and _clevel == 1 and len(_clines[_clevel][-1]) != 0:
+        _clines[_clevel].append([])
 
 def _hc(fmt, *args):
     '''
@@ -179,6 +188,8 @@ def _c_setlevel(idx):
     while len(_clines) <= idx:
         _clines.append([])
     _clevel = idx
+    if _ns.header == 'xproto' and _clevel == 1 and len(_clines[_clevel]) == 0:
+        _clines[_clevel].append([])
 
 def _n_item(str):
     '''
@@ -332,19 +343,30 @@ def c_close(self):
 
     # Write header file
     hfile = open('%s.h' % _ns.header, 'w', encoding='UTF-8')
-    for list in _hlines:
-        for line in list:
+    for _list in _hlines:
+        for line in _list:
             hfile.write(line)
             hfile.write('\n')
     hfile.close()
 
     # Write source file
-    cfile = open('%s.c' % _ns.header, 'w', encoding='UTF-8')
-    for list in _clines:
-        for line in list:
-            cfile.write(line)
-            cfile.write('\n')
-    cfile.close()
+    if _ns.header == 'xproto':
+        for fnum in range(len(_clines[1])):
+            cfile = open('%s.%03d.c' % (_ns.header, fnum), 'w', encoding='UTF-8')
+            for level, _list in enumerate(_clines):
+                if level == 1:
+                    _list = _list[fnum]
+                for line in _list:
+                    cfile.write(line)
+                    cfile.write('\n')
+            cfile.close()
+    else:
+        cfile = open('%s.c' % _ns.header, 'w', encoding='UTF-8')
+        for _list in _clines:
+            for line in _list:
+                cfile.write(line)
+                cfile.write('\n')
+        cfile.close()
 
 def build_collision_table():
     global namecount
@@ -358,6 +380,7 @@ def c_enum(self, name):
     '''
     Exported function that handles enum declarations.
     '''
+    _c_nextfun()
 
     enums[name] = self
 
@@ -2088,6 +2111,7 @@ def c_simple(self, name):
     Exported function that handles cardinal type declarations.
     These are types which are typedef'd to one of the CARDx's, char, float, etc.
     '''
+    _c_nextfun()
     _c_type_setup(self, name, ())
 
     if (self.name != name):
@@ -2158,6 +2182,7 @@ def c_struct(self, name):
     '''
     Exported function that handles structure declarations.
     '''
+    _c_nextfun()
     _c_type_setup(self, name, ())
     _c_complex(self)
     _c_accessors(self, name, name)
@@ -2167,6 +2192,7 @@ def c_union(self, name):
     '''
     Exported function that handles union declarations.
     '''
+    _c_nextfun()
     _c_type_setup(self, name, ())
     _c_complex(self)
     _c_iterator(self, name)
@@ -3166,6 +3192,7 @@ def c_request(self, name):
     '''
     Exported function that handles request declarations.
     '''
+    _c_nextfun()
     _c_type_setup(self, name, ('request',))
 
     if self.reply:
@@ -3214,6 +3241,7 @@ def c_request(self, name):
 
 def c_eventstruct(self, name):
     #add fields that are needed to get the event-type in a generic way
+    _c_nextfun()
     self.fields.append( Field( tevent, tevent.name, 'event_header', False, True, True) )
 
     if self.contains_ge_events:
@@ -3237,6 +3265,7 @@ def c_event(self, name):
     '''
     Exported function that handles event declarations.
     '''
+    _c_nextfun()
 
     # The generic event structure xcb_ge_event_t has the full_sequence field
     # at the 32byte boundary. That's why we've to inject this field into GE
@@ -3306,6 +3335,7 @@ def c_error(self, name):
     '''
     Exported function that handles error declarations.
     '''
+    _c_nextfun()
     _c_type_setup(self, name, ('error',))
 
     # Opcode define
