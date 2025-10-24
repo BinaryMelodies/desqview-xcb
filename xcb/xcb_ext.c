@@ -61,7 +61,9 @@ static lazyreply *get_index(xcb_connection_t *c, int idx)
 
 static lazyreply *get_lazyreply(xcb_connection_t *c, xcb_extension_t *ext)
 {
+#ifndef __DOS__
     static pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
     static int next_global_id;
 
     lazyreply *data;
