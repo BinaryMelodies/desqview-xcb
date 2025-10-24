@@ -42,13 +42,17 @@
 #include "xcb_windefs.h"
 #else
 #include <unistd.h>
+#ifndef __DOS__
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#endif
 #include <fcntl.h>
+#ifndef __DOS__
 #include <netdb.h>
+#endif
 #endif /* _WIN32 */
 
 #include "xcb.h"
@@ -104,9 +108,13 @@ static int _xcb_parse_display_path_to_socket(const char *name, char **host, char
                                              int *displayp, int *screenp)
 {
     struct stat sbuf;
+#ifndef __DOS__
     /* In addition to the AF_UNIX path, there may be a screen number.
      * The trailing \0 is already accounted in the size of sun_path. */
     char path[sizeof(((struct sockaddr_un*)0)->sun_path) + 1 + 10];
+#else
+    char path[PATH_MAX];
+#endif
     size_t len;
     int _screen = 0, res;
 
@@ -165,6 +173,11 @@ static int _xcb_parse_display(const char *name, char **host, char **protocol,
 
     if(!name || !*name)
         name = getenv("DISPLAY");
+#ifdef __DOS__
+    /* The Quarterdeck libraries revert back to this if name is NULL */
+    if(!name)
+        name = strdup(":0");
+#endif
     if(!name)
         return 0;
 
@@ -238,6 +251,7 @@ int xcb_parse_display(const char *name, char **host, int *displayp,
     return _xcb_parse_display(name, host, NULL, displayp, screenp);
 }
 
+#ifndef __DOS__
 static int _xcb_open_tcp(const char *host, char *protocol, const unsigned short port);
 #ifndef _WIN32
 static int _xcb_open_unix(char *protocol, const char *file);
@@ -474,6 +488,7 @@ static int _xcb_open_unix(char *protocol, const char *file)
     return fd;
 }
 #endif /* !_WIN32 */
+#endif /* !__DOS__ */
 
 xcb_connection_t *xcb_connect(const char *displayname, int *screenp)
 {
@@ -483,17 +498,21 @@ xcb_connection_t *xcb_connect(const char *displayname, int *screenp)
 xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname, xcb_auth_info_t *auth, int *screenp)
 {
     int fd, display = 0;
+#ifndef __DOS__
     char *host = NULL;
     char *protocol = NULL;
     xcb_auth_info_t ourauth;
+#endif
     xcb_connection_t *c;
 
+#ifndef __DOS__
     int parsed = _xcb_parse_display(displayname, &host, &protocol, &display, screenp);
 
     if(!parsed) {
         c = _xcb_conn_ret_error(XCB_CONN_CLOSED_PARSE_ERR);
         goto out;
     }
+#endif
 
 #ifdef _WIN32
     WSADATA wsaData;
@@ -503,7 +522,12 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
     }
 #endif
 
+#ifndef __DOS__
     fd = _xcb_open(host, protocol, display);
+#else
+    /* The DESQview API simplifies much of the process to handle creating a connection to the X server */
+    fd = socket_connect(displayname, screenp);
+#endif
 
     if(fd == -1) {
         c = _xcb_conn_ret_error(XCB_CONN_ERROR);
@@ -513,6 +537,7 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
         goto out;
     }
 
+#ifndef __DOS__
     if(auth) {
         c = xcb_connect_to_fd(fd, auth);
     }
@@ -523,6 +548,7 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
         free(ourauth.data);
     }
     else
+#endif
         c = xcb_connect_to_fd(fd, 0);
 
     if(c->has_error)
@@ -536,7 +562,9 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
     }
 
 out:
+#ifndef __DOS__
     free(host);
     free(protocol);
+#endif
     return c;
 }
