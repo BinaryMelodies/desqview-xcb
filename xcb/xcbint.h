@@ -100,10 +100,14 @@ typedef struct _xcb_fd {
 #endif
 
 typedef struct _xcb_out {
+#ifndef __DOS__
     pthread_cond_t cond;
+#endif
     int writing;
 
+#ifndef __DOS__
     pthread_cond_t socket_cond;
+#endif
     void (*return_socket)(void *closure);
     void *socket_closure;
     int socket_moving;
@@ -116,7 +120,9 @@ typedef struct _xcb_out {
     uint64_t request_expected_written;
     uint64_t total_written;
 
+#ifndef __DOS__
     pthread_mutex_t reqlenlock;
+#endif
     enum lazy_reply_tag maximum_request_length_tag;
     union {
         xcb_big_requests_enable_cookie_t cookie;
@@ -138,7 +144,9 @@ int _xcb_out_flush_to(xcb_connection_t *c, uint64_t request);
 /* xcb_in.c */
 
 typedef struct _xcb_in {
+#ifndef __DOS__
     pthread_cond_t event_cond;
+#endif
     int reading;
 
     char queue[4096];
@@ -168,7 +176,11 @@ typedef struct _xcb_in {
 int _xcb_in_init(_xcb_in *in);
 void _xcb_in_destroy(_xcb_in *in);
 
+#ifndef __DOS__
 void _xcb_in_wake_up_next_reader(xcb_connection_t *c);
+#else
+#define _xcb_in_wake_up_next_reader(...) ((void) 0)
+#endif
 
 int _xcb_in_expect_reply(xcb_connection_t *c, uint64_t request, enum workarounds workaround, int flags);
 void _xcb_in_replies_done(xcb_connection_t *c);
@@ -180,7 +192,9 @@ int _xcb_in_read_block(xcb_connection_t *c, void *buf, int nread);
 /* xcb_xid.c */
 
 typedef struct _xcb_xid {
+#ifndef __DOS__
     pthread_mutex_t lock;
+#endif
     uint32_t last;
     uint32_t base;
     uint32_t max;
@@ -194,7 +208,9 @@ void _xcb_xid_destroy(xcb_connection_t *c);
 /* xcb_ext.c */
 
 typedef struct _xcb_ext {
+#ifndef __DOS__
     pthread_mutex_t lock;
+#endif
     struct lazyreply *extensions;
     int extensions_size;
 } _xcb_ext;
@@ -214,7 +230,9 @@ struct xcb_connection_t {
     int fd;
 
     /* I/O data */
+#ifndef __DOS__
     pthread_mutex_t iolock;
+#endif
     _xcb_in in;
     _xcb_out out;
 
@@ -228,7 +246,12 @@ void _xcb_conn_shutdown(xcb_connection_t *c, int err);
 XCB_CONST_FUNCTION
 xcb_connection_t *_xcb_conn_ret_error(int err);
 
+#ifndef __DOS__
 int _xcb_conn_wait(xcb_connection_t *c, pthread_cond_t *cond, struct iovec **vector, int *count);
+#else
+int _xcb_conn_wait(xcb_connection_t *c, struct iovec **vector, int *count);
+#define _xcb_conn_wait(c, cond, vector, count) _xcb_conn_wait(c, vector, count)
+#endif
 
 
 /* xcb_auth.c */
