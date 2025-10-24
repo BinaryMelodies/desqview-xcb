@@ -31,12 +31,18 @@
 
 #include <stdint.h>
 
+#ifndef __DOS__
 #ifndef _WIN32
 #include <sys/uio.h>
 #else
 #include "xcb_windefs.h"
 #endif
+#else
+#include "xcb_dos.h"
+#endif
+#ifndef __WATCOMC__
 #include <pthread.h>
+#endif
 
 
 #ifdef __cplusplus
