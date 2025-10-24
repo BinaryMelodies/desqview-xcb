@@ -125,7 +125,7 @@ static int _xcb_parse_display_path_to_socket(const char *name, char **host, char
     res = stat(path, &sbuf);
     if (0 != res) {
         unsigned long lscreen;
-	char *dot, *endptr;
+        char *dot, *endptr;
         if (res != -1 || (errno != ENOENT && errno != ENOTDIR))
             return 0;
         dot = strrchr(path, '.');
@@ -512,7 +512,6 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
         c = _xcb_conn_ret_error(XCB_CONN_CLOSED_PARSE_ERR);
         goto out;
     }
-#endif
 
 #ifdef _WIN32
     WSADATA wsaData;
@@ -522,9 +521,18 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
     }
 #endif
 
-#ifndef __DOS__
     fd = _xcb_open(host, protocol, display);
 #else
+    if(!displayname || !*displayname)
+    {
+        displayname = getenv("DISPLAY");
+        /* The Quarterdeck libraries revert back to this if name is NULL */
+        if(!displayname)
+            displayname = strdup(":0");
+        if(!displayname)
+            goto out;
+    }
+
     /* The DESQview API simplifies much of the process to handle creating a connection to the X server */
     fd = socket_connect(displayname, screenp);
 #endif

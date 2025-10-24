@@ -270,7 +270,7 @@ int socket_connect(const char * display_name, int * screenp)
     }
 
     socket_record->function_number = DVX_SOCKET_CONNECT;
-    _fstrncpy(socket_record->u.connect.display_name, ":0", sizeof socket_record->u.connect.display_name);
+    _fstrncpy(socket_record->u.connect.display_name, display_name, sizeof socket_record->u.connect.display_name);
     socket_record->error_code = errno;
     dvx_socket_call(socket_record, NULL);
     errno = socket_record->error_code;
