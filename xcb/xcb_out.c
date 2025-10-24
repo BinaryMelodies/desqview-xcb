@@ -90,8 +90,10 @@ static void send_sync(xcb_connection_t *c)
 
 static void get_socket_back(xcb_connection_t *c)
 {
+#ifndef __DOS__
     while(c->out.return_socket && c->out.socket_moving)
         pthread_cond_wait(&c->out.socket_cond, &c->iolock);
+#endif
     if(!c->out.return_socket)
         return;
 
@@ -183,7 +185,8 @@ uint32_t xcb_get_maximum_request_length(xcb_connection_t *c)
 
 static void close_fds(int *fds, unsigned int num_fds)
 {
-    for (unsigned int index = 0; index < num_fds; index++)
+    unsigned int index;
+    for (index = 0; index < num_fds; index++)
         close(fds[index]);
 }
 
@@ -328,7 +331,7 @@ uint64_t xcb_send_request_with_fds64(xcb_connection_t *c, int flags, struct iove
      * an error in sending the request
      */
 
-    while ((req->isvoid && c->out.request == c->in.request_expected + (1 << 16) - 2) ||
+    while ((req->isvoid && c->out.request == c->in.request_expected + (1L << 16) - 2) ||
            (unsigned int) (c->out.request + 1) == 0)
     {
         send_sync(c);
@@ -362,7 +365,8 @@ unsigned int xcb_send_request(xcb_connection_t *c, int flags, struct iovec *vect
 void
 xcb_send_fd(xcb_connection_t *c, int fd)
 {
-    int fds[1] = { fd };
+    int fds[1];
+    fds[0] = fd;
 
     if (c->has_error) {
         close(fd);
@@ -494,8 +498,10 @@ int _xcb_out_flush_to(xcb_connection_t *c, uint64_t request)
         c->out.queue_len = 0;
         return _xcb_out_send(c, &vec, 1);
     }
+#ifndef __DOS__
     while(c->out.writing)
         pthread_cond_wait(&c->out.cond, &c->iolock);
+#endif
     assert(XCB_SEQUENCE_COMPARE(c->out.request_written, >=, request));
     return 1;
 }
