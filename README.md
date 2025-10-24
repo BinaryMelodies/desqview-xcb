@@ -16,6 +16,8 @@ The rest of the code comes from the XCB project and has been adjusted for the ne
 
 Running `make` will create an `out/watcom` and an `out/gcc` folder, containing the libraries for the Open Watcom and IA-16 GCC compilers.
 It will also compile the tests as MS-DOS small model executables under the same folders that can be directly run under DESQview/X.
+Alternatively, `make watcom` will only generate the Watcom binaries and `make gcc` the IA-16 GCC binaries.
+The command `make native` will compile the examples for the host using the host's version of GCC.
 
 The generated executables can be launched from within DESQview/X, for example from a DOS window.
 

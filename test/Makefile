@@ -2,14 +2,20 @@
 DSTPATH=../out
 TESTS=cursor.c events.c gfx.c text.c wm.c
 
-all: $(patsubst %.c,$(DSTPATH)/watcom/%.exe,$(TESTS)) $(patsubst %.c,$(DSTPATH)/gcc/%.exe,$(TESTS)) $(patsubst %.c,$(DSTPATH)/native/%,$(TESTS))
+all: watcom gcc native
+
+watcom: $(patsubst %.c,$(DSTPATH)/watcom/%.exe,$(TESTS))
+
+gcc: $(patsubst %.c,$(DSTPATH)/gcc/%.exe,$(TESTS))
+
+native: $(patsubst %.c,$(DSTPATH)/native/%,$(TESTS))
 
 clean:
 
 distclean: clean
 	rm -rf *~
 
-.PHONY: all clean distclean
+.PHONY: all clean distclean watcom gcc native
 
 $(DSTPATH)/watcom/%.o: %.c
 	mkdir -p `dirname $@`
