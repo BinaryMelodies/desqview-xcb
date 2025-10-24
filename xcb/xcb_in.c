@@ -40,8 +40,10 @@
 #endif
 #ifndef _WIN32
 #include <unistd.h>
+#ifndef __DOS__
 #include <sys/select.h>
 #include <sys/socket.h>
+#endif
 #endif
 
 #ifdef _WIN32
@@ -75,7 +77,9 @@ struct xcb_special_event {
     struct event_list   *events;
     struct event_list   **events_tail;
 
+#ifndef __DOS__
     pthread_cond_t special_event_cond;
+#endif
 };
 
 struct reply_list {
@@ -93,7 +97,9 @@ typedef struct pending_reply {
 
 typedef struct reader_list {
     uint64_t request;
+#ifndef __DOS__
     pthread_cond_t *data;
+#endif
     struct reader_list *next;
 } reader_list;
 
@@ -376,11 +382,19 @@ static int read_block(const int fd, void *buf, const intptr_t len)
     int done = 0;
     while(done < len)
     {
+#ifndef __DOS__
         int ret = recv(fd, ((char *) buf) + done, len - done, 0);
+#else
+        int ret = socket_recv(fd, ((char *) buf) + done, len - done, 0);
+#endif
         if(ret > 0)
             done += ret;
 #ifndef _WIN32
+#ifndef __DOS__
         if(ret < 0 && errno == EAGAIN)
+#else
+        if(ret < 0 && (errno == EAGAIN || errno == EDEADLK))
+#endif
 #else
         if(ret == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
 #endif /* !_Win32 */
@@ -401,7 +415,11 @@ static int read_block(const int fd, void *buf, const intptr_t len)
             /* Initializing errno here makes sure that for Win32 this loop will execute only once */
             errno = 0;
             do {
+#ifndef __DOS__
                 ret = select(fd + 1, &fds, 0, 0, 0);
+#else
+                ret = socket_select(fd + 1, &fds, 0, 0, 0);
+#endif
             } while (ret == -1 && errno == EINTR);
 #endif /* USE_POLL */
         }
@@ -466,12 +484,18 @@ static int poll_for_reply(xcb_connection_t *c, uint64_t request, void **reply, x
     return 1;
 }
 
+#ifdef __DOS__
+#define insert_reader(prev_reader, reader, request, cond) insert_reader(prev_reader, reader, request)
+#endif
+
 static void insert_reader(reader_list **prev_reader, reader_list *reader, uint64_t request, pthread_cond_t *cond)
 {
     while(*prev_reader && XCB_SEQUENCE_COMPARE((*prev_reader)->request, <=, request))
         prev_reader = &(*prev_reader)->next;
     reader->request = request;
+#ifndef __DOS__
     reader->data = cond;
+#endif
     reader->next = *prev_reader;
     *prev_reader = reader;
 }
@@ -513,7 +537,9 @@ static void *wait_for_reply(xcb_connection_t *c, uint64_t request, xcb_generic_e
     /* If this request has not been written yet, write it. */
     if(c->out.return_socket || _xcb_out_flush_to(c, request))
     {
+#ifndef __DOS__
         pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+#endif
         reader_list reader;
 
         insert_reader(&c->in.readers, &reader, request, &cond);
@@ -931,6 +957,7 @@ void _xcb_in_destroy(_xcb_in *in)
     }
 }
 
+#ifndef __DOS__
 void _xcb_in_wake_up_next_reader(xcb_connection_t *c)
 {
     int pthreadret;
@@ -942,6 +969,7 @@ void _xcb_in_wake_up_next_reader(xcb_connection_t *c)
         pthreadret = pthread_cond_signal(&c->in.event_cond);
     assert(pthreadret == 0);
 }
+#endif
 
 int _xcb_in_expect_reply(xcb_connection_t *c, uint64_t request, enum workarounds workaround, int flags)
 {
@@ -1020,7 +1048,11 @@ int _xcb_in_read(xcb_connection_t *c)
         return 0;
     }
 #else
+#ifndef __DOS__
     n = recv(c->fd, c->in.queue + c->in.queue_len, sizeof(c->in.queue) - c->in.queue_len, 0);
+#else
+    n = socket_recv(c->fd, c->in.queue + c->in.queue_len, sizeof(c->in.queue) - c->in.queue_len, 0);
+#endif
 #endif
     if(n > 0) {
 #if HAVE_SENDMSG
@@ -1063,7 +1095,11 @@ int _xcb_in_read(xcb_connection_t *c)
     }
 #endif
 #ifndef _WIN32
+#ifndef __DOS__
     if((n > 0) || (n < 0 && (errno == EAGAIN || errno == EINTR)))
+#else
+    if((n > 0) || (n < 0 && (errno == EAGAIN || errno == EINTR || errno == EDEADLK)))
+#endif
 #else
     if((n > 0) || (n < 0 && WSAGetLastError() == WSAEWOULDBLOCK))
 #endif /* !_WIN32 */
