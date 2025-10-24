@@ -39,10 +39,12 @@
 
 #include "xcb.h"
 #include "xcbint.h"
+#ifndef __DOS__
 #if USE_POLL
 #include <poll.h>
 #elif !defined _WIN32
 #include <sys/select.h>
+#endif
 #endif
 
 #ifdef _WIN32
@@ -50,9 +52,15 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#ifndef __DOS__
 #include <sys/socket.h>
 #include <netinet/in.h>
+#endif
 #endif /* _WIN32 */
+
+#ifdef __DOS__
+#include "xcb_dos.h"
+#endif
 
 /* SHUT_RDWR is fairly recent and is not available on all platforms */
 #if !defined(SHUT_RDWR)
@@ -99,6 +107,7 @@ static int is_static_error_conn(xcb_connection_t *c)
            c == (xcb_connection_t *) &xcb_con_closed_screen_er;
 }
 
+#ifndef __DOS__
 static int set_fd_flags(const int fd)
 {
 /* Win32 doesn't have file descriptors and the fcntl function. This block sets the socket in non-blocking mode */
@@ -123,6 +132,9 @@ static int set_fd_flags(const int fd)
     return 1;
 #endif /* _WIN32 */
 }
+#else
+#define set_fd_flags(...) (1)
+#endif
 
 static int write_setup(xcb_connection_t *c, xcb_auth_info_t *auth_info)
 {
@@ -136,10 +148,14 @@ static int write_setup(xcb_connection_t *c, xcb_auth_info_t *auth_info)
     memset(&out, 0, sizeof(out));
 
     /* B = 0x42 = MSB first, l = 0x6c = LSB first */
+#ifndef __DOS__
     if(htonl(endian) == endian)
         out.byte_order = 0x42;
     else
         out.byte_order = 0x6c;
+#else
+    out.byte_order = 0x6c;
+#endif
     out.protocol_major_version = X_PROTOCOL;
     out.protocol_minor_version = X_PROTOCOL_REVISION;
     out.authorization_protocol_name_len = 0;
@@ -230,7 +246,11 @@ static int write_vec(xcb_connection_t *c, struct iovec **vector, int *count)
         struct iovec *vec = *vector;
         if (vec->iov_len)
         {
+#ifndef __DOS__
             int ret = send(c->fd, vec->iov_base, vec->iov_len, 0);
+#else
+            int ret = socket_send(c->fd, vec->iov_base, vec->iov_len, 0);
+#endif
             if (ret == SOCKET_ERROR)
             {
                 int err = WSAGetLastError();
@@ -403,12 +423,16 @@ void xcb_disconnect(xcb_connection_t *c)
     free(c->setup);
 
     /* disallow further sends and receives */
+#ifndef __DOS__
     shutdown(c->fd, SHUT_RDWR);
 #ifdef _WIN32
     closesocket(c->fd);
 #else
     close(c->fd);
 #endif
+#else
+    socket_close(c->fd);
+#endif /* __DOS__ */
 
     pthread_mutex_destroy(&c->iolock);
     _xcb_in_destroy(&c->in);
@@ -516,7 +540,11 @@ int _xcb_conn_wait(xcb_connection_t *c, pthread_cond_t *cond, struct iovec **vec
             break;
         }
 #else
+#ifndef __DOS__
         ret = select(c->fd + 1, &rfds, &wfds, 0, 0);
+#else
+        ret = socket_select(c->fd + 1, &rfds, &wfds, 0, 0);
+#endif
 #endif
     } while (ret == -1 && errno == EINTR);
     if(ret < 0)
