@@ -14,6 +14,7 @@
 # include <libi86/string.h>
 #endif
 
+#include "xcb.h"
 #include "xcb_dos.h"
 
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
@@ -57,7 +58,7 @@ struct dvx_select_record
     // these two fields are used to pass the timeout structure in the Quarterdeck implementation
     IN  uint32_t timeout_sec;
     IN  uint32_t timeout_usec;
-} PACKED;
+} XCB_PACKED;
 
 // 0x06
 struct dvx_close_record

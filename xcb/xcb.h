@@ -72,6 +72,8 @@ extern "C" {
 /* Supported in gcc 2.7 and later */
 #if defined(__GNUC__) ||  __has_attribute(__packed__)
 #define XCB_PACKED __attribute__((__packed__))
+#elif defined(__WATCOMC__)
+#define XCB_PACKED _Packed
 #else
 #define XCB_PACKED
 #endif
