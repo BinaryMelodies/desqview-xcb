@@ -215,47 +215,47 @@ int socket_close(int socket)
 /* POSIX recv call */
 int socket_recv(int socket, void * buffer, size_t byte_count, int flags)
 {
-	int total_bytes_read = 0;
+    int total_bytes_read = 0;
 #if DEBUG
     fprintf(stderr, "socket_recv(%d, %X, %d, %d)\n", socket, buffer, byte_count, flags);
 #endif
-	socket_record->error_code = errno;
-	while(1)
-	{
-		int actual_byte_count = MIN(socket_record->maximum_message_size, byte_count);
+    socket_record->error_code = errno;
+    while(1)
+    {
+        int actual_byte_count = MIN(socket_record->maximum_message_size, byte_count);
 
-		socket_record->function_number = DVX_SOCKET_RECVFROM;
-		socket_record->u.recvfrom.socket_handle = socket;
-		socket_record->u.recvfrom.byte_count = actual_byte_count;
-		socket_record->u.recvfrom.flags = 0;
-		socket_record->u.recvfrom.source_present = FALSE;
+        socket_record->function_number = DVX_SOCKET_RECVFROM;
+        socket_record->u.recvfrom.socket_handle = socket;
+        socket_record->u.recvfrom.byte_count = actual_byte_count;
+        socket_record->u.recvfrom.flags = 0;
+        socket_record->u.recvfrom.source_present = FALSE;
 #if DEBUG
-	    fprintf(stderr, "-actual_recv(%d, %X, %d, %d)\n", socket, buffer, socket_record->u.recvfrom.byte_count, flags);
+        fprintf(stderr, "-actual_recv(%d, %X, %d, %d)\n", socket, buffer, socket_record->u.recvfrom.byte_count, flags);
 #endif
-		dvx_socket_call(socket_record, NULL);
+        dvx_socket_call(socket_record, NULL);
 #if DEBUG
-	    fprintf(stderr, "? %d, errno: %d\n", socket_record->u.recvfrom.bytes_read, socket_record->error_code);
+        fprintf(stderr, "? %d, errno: %d\n", socket_record->u.recvfrom.bytes_read, socket_record->error_code);
 #endif
-		if(socket_record->u.recvfrom.bytes_read < 0)
-		{
-			total_bytes_read = socket_record->u.recvfrom.bytes_read;
-			break;
-		}
+        if(socket_record->u.recvfrom.bytes_read < 0)
+        {
+            total_bytes_read = socket_record->u.recvfrom.bytes_read;
+            break;
+        }
 
-		total_bytes_read += socket_record->u.recvfrom.bytes_read;
-	    _fmemcpy(buffer, socket_record->u.recvfrom.buffer, socket_record->u.recvfrom.bytes_read);
+        total_bytes_read += socket_record->u.recvfrom.bytes_read;
+        _fmemcpy(buffer, socket_record->u.recvfrom.buffer, socket_record->u.recvfrom.bytes_read);
 
-		if(socket_record->u.recvfrom.bytes_read < actual_byte_count)
-			// there is likely no more data, return
-			break;
+        if(socket_record->u.recvfrom.bytes_read < actual_byte_count)
+            // there is likely no more data, return
+            break;
 
-		if(actual_byte_count == byte_count)
-			// there is no more buffer to read into
-			break;
+        if(actual_byte_count == byte_count)
+            // there is no more buffer to read into
+            break;
 
-		byte_count -= socket_record->u.recvfrom.bytes_read;
-		buffer = (char *)buffer + socket_record->u.recvfrom.bytes_read;
-	}
+        byte_count -= socket_record->u.recvfrom.bytes_read;
+        buffer = (char *)buffer + socket_record->u.recvfrom.bytes_read;
+    }
     errno = socket_record->error_code;
     return socket_record->u.recvfrom.bytes_read;
 }
@@ -263,39 +263,39 @@ int socket_recv(int socket, void * buffer, size_t byte_count, int flags)
 /* POSIX send call, the remaining_bytes field reports if there are further bytes in the message that will be sent at a successive call */
 int socket_send(int socket, const void * buffer, size_t byte_count, size_t remaining_bytes, int flags)
 {
-	int total_bytes_written = 0;
+    int total_bytes_written = 0;
 #if DEBUG
     fprintf(stderr, "socket_send(%d, %X, %d, %d, %d)\n", socket, buffer, byte_count, remaining_bytes, flags);
 #endif
     socket_record->error_code = errno;
-	while(byte_count > 0)
-	{
-		socket_record->function_number = DVX_SOCKET_SENDTO;
-		socket_record->u.sendto.socket_handle = socket;
-		socket_record->u.sendto.byte_count = MIN(socket_record->maximum_message_size, byte_count);
-		socket_record->u.sendto.remaining_bytes = byte_count - socket_record->u.sendto.byte_count;
-		socket_record->u.sendto.flags = 0;
-		socket_record->u.sendto.destination_present = FALSE;
-		socket_record->u.sendto.broadcast = FALSE;
-		_fmemcpy(socket_record->u.sendto.buffer, buffer, socket_record->u.sendto.byte_count);
+    while(byte_count > 0)
+    {
+        socket_record->function_number = DVX_SOCKET_SENDTO;
+        socket_record->u.sendto.socket_handle = socket;
+        socket_record->u.sendto.byte_count = MIN(socket_record->maximum_message_size, byte_count);
+        socket_record->u.sendto.remaining_bytes = byte_count - socket_record->u.sendto.byte_count;
+        socket_record->u.sendto.flags = 0;
+        socket_record->u.sendto.destination_present = FALSE;
+        socket_record->u.sendto.broadcast = FALSE;
+        _fmemcpy(socket_record->u.sendto.buffer, buffer, socket_record->u.sendto.byte_count);
 #if DEBUG
-	    fprintf(stderr, "-actual_send(%d, %X, %d, %d, %d)\n", socket, buffer, socket_record->u.sendto.byte_count, remaining_bytes, flags);
+        fprintf(stderr, "-actual_send(%d, %X, %d, %d, %d)\n", socket, buffer, socket_record->u.sendto.byte_count, remaining_bytes, flags);
 #endif
-		dvx_socket_call(socket_record, NULL);
+        dvx_socket_call(socket_record, NULL);
 
-		if(socket_record->u.sendto.bytes_written < 0)
-		{
-			total_bytes_written = socket_record->u.sendto.bytes_written;
-			break;
-		}
+        if(socket_record->u.sendto.bytes_written < 0)
+        {
+            total_bytes_written = socket_record->u.sendto.bytes_written;
+            break;
+        }
 
-		total_bytes_written += socket_record->u.sendto.bytes_written;
+        total_bytes_written += socket_record->u.sendto.bytes_written;
 
-		if(socket_record->u.sendto.bytes_written >= byte_count)
-			break;
+        if(socket_record->u.sendto.bytes_written >= byte_count)
+            break;
 
-		byte_count -= socket_record->u.sendto.bytes_written;
-		buffer = (const char *)buffer + socket_record->u.sendto.bytes_written;
+        byte_count -= socket_record->u.sendto.bytes_written;
+        buffer = (const char *)buffer + socket_record->u.sendto.bytes_written;
     }
     errno = socket_record->error_code;
     return total_bytes_written;
