@@ -2,6 +2,7 @@
 /* thin wrapper around the DESQview socket API */
 /* most of it is documented in Ralf Brown's interrupt list */
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -26,12 +27,15 @@
 enum
 {
     DVX_SOCKET_API = 0xDE2E,
+    DVX_SOCKET_IOCTL = 0x02,
     DVX_SOCKET_SELECT = 0x05,
     DVX_SOCKET_CLOSE = 0x06,
     DVX_SOCKET_RECVFROM = 0x09,
     DVX_SOCKET_SENDTO = 0x0D,
     DVX_SOCKET_CONNECT = 0x14,
     DVX_NET_EXIT = 0xFFFF,
+
+    DVX_SOCKET_IOCTL_FIONREAD = 0x05,
 };
 
 /* convenience macros to make the purpose of the following fields clear */
@@ -45,6 +49,15 @@ enum
 #define BOOL  int16_t
 #define FALSE ((BOOL)0)
 #define TRUE  ((BOOL)1)
+
+// 0x02
+struct dvx_ioctl_record
+{
+    OUT int16_t status;
+    IN  int16_t socket_handle;
+    IN  int16_t request;
+    VAR int32_t parameter;
+} XCB_PACKED;
 
 // 0x05
 struct dvx_select_record
@@ -63,7 +76,7 @@ struct dvx_select_record
 // 0x06
 struct dvx_close_record
 {
-    OUT uint16_t status;
+    OUT int16_t status;
     IN  int16_t socket_handle;
 };
 
@@ -122,6 +135,7 @@ struct dvx_socket_record
     void __far * timer_handle;
     union
     {
+        struct dvx_ioctl_record ioctl;
         struct dvx_select_record select;
         struct dvx_close_record close;
         struct dvx_recvfrom_record recvfrom;
@@ -157,12 +171,47 @@ static inline struct dvx_socket_record __far * dvx_socket_call(struct dvx_socket
 static uint16_t socket_record_length;
 static struct dvx_socket_record __far * socket_record;
 
+/* POSIX ioctl call */
+int socket_ioctl(int fd, int request, long * parameter)
+{
+#if DEBUG
+    switch(request)
+    {
+    case DVX_SOCKET_IOCTL_FIONREAD:
+        fprintf(stderr, "socket_ioctl(%d, FIONREAD)\n", fd);
+        break;
+    default:
+        fprintf(stderr, "socket_ioctl(%d, %d, %ld)\n", fd, request, *parameter);
+        break;
+    }
+#endif
+    socket_record->function_number = DVX_SOCKET_IOCTL;
+    socket_record->u.ioctl.socket_handle = fd;
+    socket_record->u.ioctl.request = request;
+    socket_record->u.ioctl.parameter = *parameter;
+    socket_record->error_code = errno;
+    dvx_socket_call(socket_record, NULL);
+#if DEBUG
+    switch(request)
+    {
+    case DVX_SOCKET_IOCTL_FIONREAD:
+    default:
+        fprintf(stderr, "? %d, %d, errno = %d\n", socket_record->u.ioctl.status, socket_record->u.ioctl.parameter, socket_record->error_code);
+        break;
+    }
+#endif
+    errno = socket_record->error_code;
+    *parameter = socket_record->u.ioctl.parameter;
+    return socket_record->u.ioctl.status;
+}
+
 /* POSIX select call */
 int socket_select(int nfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds, struct timeval * timeout)
 {
 #if DEBUG
     fprintf(stderr, "socket_select(%d, %lX, %lX, %lX, %d)\n", nfds, readfds ? *readfds : 0, writefds ? *writefds : 0, exceptfds ? *exceptfds : 0, timeout ? timeout->tv_sec : -1);
 #endif
+
     socket_record->error_code = errno;
     do
     {
@@ -182,6 +231,10 @@ int socket_select(int nfds, fd_set * readfds, fd_set * writefds, fd_set * except
             socket_record->u.select.timeout_present = FALSE;
         }
         dvx_socket_call(socket_record, NULL);
+#if DEBUG
+        if(!(timeout == NULL && socket_record->u.select.result_nfds == 0))
+            fprintf(stderr, "? %d, errno = %d\n", socket_record->u.select.result_nfds, socket_record->error_code);
+#endif
         /* DESQview seems to not block when timeout == NULL even if none of the handles are ready, so we have to use a loop */
     } while(timeout == NULL && socket_record->u.select.result_nfds == 0);
     errno = socket_record->error_code;
