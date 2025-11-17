@@ -5,10 +5,10 @@ WATCOM=
 # only needed to install the library for IA-16 GCC
 IA16GCC=
 
-all: $(DSTPATH)/watcom/xcblib.lib $(DSTPATH)/gcc/libxcb.a
+all: $(DSTPATH)/watcom/xcblib.lib $(DSTPATH)/watcom/xcblibl.lib $(DSTPATH)/gcc/libxcb.a
 	make -C test
 
-watcom: $(DSTPATH)/watcom/xcblib.lib
+watcom: $(DSTPATH)/watcom/xcblib.lib $(DSTPATH)/watcom/xcblibl.lib
 	make -C test watcom
 
 gcc: $(DSTPATH)/gcc/libxcb.a
@@ -36,12 +36,13 @@ install_gcc:
 
 install_watcom:
 	cp $(DSTPATH)/watcom/xcblib.lib $(WATCOM)/lib286/
+	cp $(DSTPATH)/watcom/xcblibl.lib $(WATCOM)/lib286/
 	mkdir -p $(WATCOM)/h/xcb/
 	cp xcb/xcb.h xcb/xcb_dos.h xcb/xproto.h $(WATCOM)/h/xcb/
 
 .PHONY: all clean distclean watcom gcc native install install_gcc install_watcom
 
-$(DSTPATH)/watcom/xcblib.lib $(DSTPATH)/gcc/libxcb.a: xcb/xcb_conn.c xcb/xcb_dos.c xcb/xcb_ext.c xcb/xcb_in.c xcb/xcb_list.c xcb/xcb_util.c xcb/xcb_xid.c xcb/xcb_dos.h
+$(DSTPATH)/watcom/xcblib.lib $(DSTPATH)/watcom/xcblibl.lib $(DSTPATH)/gcc/libxcb.a: xcb/xcb_conn.c xcb/xcb_dos.c xcb/xcb_ext.c xcb/xcb_in.c xcb/xcb_list.c xcb/xcb_util.c xcb/xcb_xid.c xcb/xcb_dos.h
 	make -C xcb xproto.h # must be called first to generate xproto.???.c files
 	make -C xcb ../$@
 

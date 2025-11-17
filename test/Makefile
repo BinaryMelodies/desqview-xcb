@@ -4,7 +4,7 @@ TESTS=cursor.c events.c gfx.c text.c wm.c
 
 all: watcom gcc native
 
-watcom: $(patsubst %.c,$(DSTPATH)/watcom/%.exe,$(TESTS))
+watcom: $(patsubst %.c,$(DSTPATH)/watcom/%.exe,$(TESTS)) $(patsubst %.c,$(DSTPATH)/watcom/l/%.exe,$(TESTS))
 
 gcc: $(patsubst %.c,$(DSTPATH)/gcc/%.exe,$(TESTS))
 
@@ -21,7 +21,14 @@ $(DSTPATH)/watcom/%.o: %.c
 	mkdir -p `dirname $@`
 	wcl -q -bcl=dos -c $< -fo=$@ -dHAVE_CONFIG_H=1 -i=..
 
+$(DSTPATH)/watcom/l/%.o: %.c
+	mkdir -p `dirname $@`
+	wcl -q -bcl=dos -c $< -fo=$@ -dHAVE_CONFIG_H=1 -i=.. -ml
+
 $(DSTPATH)/watcom/%.exe: $(DSTPATH)/watcom/%.o $(DSTPATH)/watcom/xcblib.lib
+	wcl -q -bcl=dos $^ -fe=$@
+
+$(DSTPATH)/watcom/l/%.exe: $(DSTPATH)/watcom/l/%.o $(DSTPATH)/watcom/xcblibl.lib
 	wcl -q -bcl=dos $^ -fe=$@
 
 $(DSTPATH)/gcc/%.o: %.c

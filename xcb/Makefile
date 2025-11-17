@@ -20,11 +20,19 @@ $(DSTPATH)/watcom/%.o: %.c $(GENHDRS)
 	mkdir -p `dirname $@`
 	wcl -q -bcl=dos -c $< -fo=$@ -dHAVE_CONFIG_H=1
 
+$(DSTPATH)/watcom/l/%.o: %.c $(GENHDRS)
+	mkdir -p `dirname $@`
+	wcl -q -bcl=dos -c $< -fo=$@ -dHAVE_CONFIG_H=1 -ml
+
 $(DSTPATH)/gcc/%.o: %.c $(GENHDRS)
 	mkdir -p `dirname $@`
 	ia16-elf-gcc -c $< -o $@ -DHAVE_CONFIG_H=1 -Os
 
 $(DSTPATH)/watcom/xcblib.lib: $(patsubst %,$(DSTPATH)/watcom/%,$(OBJECTS))
+	rm -f $@
+	wlib -q $@ $(patsubst %,+%,$^)
+
+$(DSTPATH)/watcom/xcblibl.lib: $(patsubst %,$(DSTPATH)/watcom/l/%,$(OBJECTS))
 	rm -f $@
 	wlib -q $@ $(patsubst %,+%,$^)
 
